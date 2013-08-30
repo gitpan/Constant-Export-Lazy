@@ -1,0 +1,15 @@
+Changes
+LICENSE
+MANIFEST
+META.json
+META.yml
+Makefile.PL
+README
+dist.ini
+lib/Constant/Export/Lazy.pm
+t/00-compile.t
+t/basic.t
+t/exporter-compat.t
+t/lib/My/Constants.pm
+t/release-pod-syntax.t
+t/synopsis.t

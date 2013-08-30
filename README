@@ -1,0 +1,160 @@
+NAME
+    Constant::Export::Lazy - Utility to write lazy exporters of constant
+    subroutines
+
+DESCRIPTION
+    This is a utility to write lazy exporters of constant subroutines. I.e.
+    it's not meant to be a user-facing constant exporting API, it's meant to
+    write user-facing constant exporting APIs.
+
+    There's dozens of similar constant defining modules on the CPAN, why did
+    I need to write this one?
+
+    *   It's lazy
+
+        Our constants fleshened via callbacks that are guaranteed to be
+        called only once for the lifetime of the process (not once per
+        importer or whatever), and we only call the callbacks lazily if
+        someone actually requests that a constant of ours be defined.
+
+        This makes it easy to have one file that runs in different
+        environments and e.g. generates some subset of its constants with a
+        module that you may not want to use, or may not be available in all
+        your environments. You can just "require" it in the callback that
+        generates the constant that requires it.
+
+    *   It makes it easier to manage creating constants that require other
+        constants
+
+        Maybe you have one constant indicating whether you're running in a
+        dev environment, and a bunch of other constants that are defined
+        differently if the dev environment constant is true.
+
+        Now imagine you have several hundred constants like that, managing
+        the inter-dependencies and that everything is defined in the right
+        order quickly gets messy.
+
+        Constant::Import::Lazy takes away all this complexity. When you
+        define a constant you get a callback object that can give you the
+        value of other constants, and will either generate them if they
+        haven't been generated, or look them up in the symbol table if they
+        have.
+
+        Thus we end up with a Makefile-like system where you can freely use
+        whatever other constants you like when defining your constants, just
+        be careful not to introduce circular dependencies.
+
+SYNOPSIS
+    So how does all this work? This example demonstrates all our features.
+    This is an example of your "My::Constants" package that you write using
+    "Constant::Export::Lazy":
+
+        package My::Constants;
+        use strict;
+        use warnings;
+        use Exporter 'import';
+        use constant {
+            X => -2,
+            Y => -1,
+        };
+        our @EXPORT_OK = qw(X Y);
+        use Constant::Export::Lazy (
+            constants => {
+                A => sub { 1 },
+                B => sub { 2 },
+                SUM => sub {
+                    # You get a $ctx object that you can ->call() to retrieve
+                    # the values of other constants if some of your constants
+                    # depend on others. Constants are still guaranteed to only
+                    # be fleshened once!
+                    my ($ctx) = @_;
+                    $ctx->call('A') + $ctx->call('B'),
+                },
+                # We won't call this and die unless someone requests it when
+                # they import us.
+                DIE => sub { die },
+                PI  => {
+                    # We can also supply a HashRef with "call" with the sub,
+                    # and "options" with options that clobber the global
+                    # options.
+                    call    => sub { 3.14 },
+                    options => {
+                        override => sub {
+                            my ($ctx, $name) = @_;
+                            # You can simply "return;" here to say "I don't
+                            # want to override", and "return undef;" if you
+                            # want the constant to be undef.
+                            return $ENV{PI} ? "Pi is = $ENV{PI}" : $ctx->call($name);
+                        },
+                    },
+                },
+            },
+            options => {
+                # We're still exporting some legacy constants via Exporter.pm
+                wrap_existing_import => 1,
+                # A general override so you can override other constants in
+                # %ENV
+                override => sub {
+                    my ($ctx, $name) = @_;
+                    return unless exists $ENV{$name};
+                    return $ENV{$name};
+                },
+            },
+        );
+
+        1;
+
+    And this is an example of using it in some user code:
+
+        package My::User::Code;
+        use strict;
+        use warnings;
+        use Test::More qw(no_plan);
+        use lib 't/lib';
+        BEGIN {
+            # Supply a more accurate PI
+            $ENV{PI} = 3.14159;
+            # Override B
+            $ENV{B} = 3;
+        }
+        use My::Constants qw(
+            X
+            Y
+            A
+            B
+            SUM
+            PI
+        );
+
+        is(X, -2);
+        is(Y, -1);
+        is(A, 1);
+        is(B, 3);
+        is(SUM, 4);
+        is(PI,  "Pi is = 3.14159");
+
+    Things to note about this example:
+
+    *   We're using "$ctx-"call($name)> to get the value of other constants
+        while defining ours.
+
+    *   That you can use either a global "override" option or a local
+        per-sub one to override your constants via %ENV variables, or
+        anything else you can think of.
+
+    *   We're using the global "wrap_existing_import" option, and Exporter
+        to export some of our constants via constant.
+
+        This demonstrates migrating an existing module that takes a list of
+        constants (or labels) that don't overlap with our list of constants
+        to "Constant::Export::Lazy".
+
+        As well as supplying this option you have to "use
+        Constant::Export::Lazy" after the other module defines its "import"
+        subroutine. Then we basically compose a list of constants we know we
+        can handle, and dispatch anything we don't know about to the
+        "import" subroutine we clobbered.
+
+AUTHOR
+    Ævar Arnfjörð Bjarmason <avar@cpan.org>
+

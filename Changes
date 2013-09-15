@@ -1,5 +1,9 @@
 Revision history for Constant::Export::Lazy
 
+0.03 2013-09-15 15:36:42
+
+    - Fix trivial POD errors I didn't spot in the 0.02 release.
+
 0.02 2013-09-15 15:28:10
 
     - Huge release with lots of new features and bugfixes.

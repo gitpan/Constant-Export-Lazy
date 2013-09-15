@@ -206,10 +206,10 @@ API
     becomes "CONST =" { call => sub { ... } }>.
 
    call
-    The subroutine we'll call with a /context object to fleshen the
-    constant. It's guaranteed that this sub will only ever be called once
-    for the lifetime of the process, except if you manually call it multiple
-    times during an "override".
+    The subroutine we'll call with a context object to fleshen the constant.
+    It's guaranteed that this sub will only ever be called once for the
+    lifetime of the process, except if you manually call it multiple times
+    during an "override".
 
    options (local)
     Our options hash to override the global "options". The semantics are
@@ -238,7 +238,7 @@ API
 
    override
     This callback can be defined either globally or locally and will be
-    called instead of your "call". In addition to the /context object this
+    called instead of your "call". In addition to the context object this
     will also get an argument to the $name of the constant that we're
     requesting an override for.
 
@@ -263,7 +263,7 @@ API
 
    after
     This callback will be called after we've just interned a new constant
-    into the symbol table. In addition to the /context object this will also
+    into the symbol table. In addition to the context object this will also
     get $name, $value and $source arguments. The $name argument is the name
     of the constant we just defined, $value is its value, and $source is
     either "override" or "callback" depending on how the constant was
@@ -277,7 +277,7 @@ API
 
    stash
     This is a reference that you can provide for your own use, we don't care
-    what's in it. It'll be accessible via the /context object's "stash"
+    what's in it. It'll be accessible via the context object's "stash"
     method (e.g. "<my $stash = $ctx-"stash> for "call", "/override" and
     "/after" calls relevant to its scope, i.e. global if you define it
     globally, otherwise local if it's defined locally.

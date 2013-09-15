@@ -2,52 +2,10 @@ NAME
     Constant::Export::Lazy - Utility to write lazy exporters of constant
     subroutines
 
-DESCRIPTION
-    This is a utility to write lazy exporters of constant subroutines. I.e.
-    it's not meant to be a user-facing constant exporting API, it's meant to
-    write user-facing constant exporting APIs.
-
-    There's dozens of similar constant defining modules on the CPAN, why did
-    I need to write this one?
-
-    *   It's lazy
-
-        Our constants fleshened via callbacks that are guaranteed to be
-        called only once for the lifetime of the process (not once per
-        importer or whatever), and we only call the callbacks lazily if
-        someone actually requests that a constant of ours be defined.
-
-        This makes it easy to have one file that runs in different
-        environments and e.g. generates some subset of its constants with a
-        module that you may not want to use, or may not be available in all
-        your environments. You can just "require" it in the callback that
-        generates the constant that requires it.
-
-    *   It makes it easier to manage creating constants that require other
-        constants
-
-        Maybe you have one constant indicating whether you're running in a
-        dev environment, and a bunch of other constants that are defined
-        differently if the dev environment constant is true.
-
-        Now imagine you have several hundred constants like that, managing
-        the inter-dependencies and that everything is defined in the right
-        order quickly gets messy.
-
-        Constant::Import::Lazy takes away all this complexity. When you
-        define a constant you get a callback object that can give you the
-        value of other constants, and will either generate them if they
-        haven't been generated, or look them up in the symbol table if they
-        have.
-
-        Thus we end up with a Makefile-like system where you can freely use
-        whatever other constants you like when defining your constants, just
-        be careful not to introduce circular dependencies.
-
 SYNOPSIS
-    So how does all this work? This example demonstrates all our features.
-    This is an example of your "My::Constants" package that you write using
-    "Constant::Export::Lazy":
+    This increasingly verbose example of your "My::Constants" package that
+    you write using "Constant::Export::Lazy" demonstrates all our features
+    (from t/lib/My/Constants.pm in the source distro):
 
         package My::Constants;
         use strict;
@@ -60,23 +18,43 @@ SYNOPSIS
         our @EXPORT_OK = qw(X Y);
         use Constant::Export::Lazy (
             constants => {
+                # This is the simplest way to go, just define plain constant
+                # values.
                 A => sub { 1 },
                 B => sub { 2 },
+                # You get a $ctx object that you can ->call() to retrieve the
+                # values of other constants. This is how you can make some
+                # constants depend on others without worrying about
+                # ordering. Constants are still guaranteed to only be
+                # fleshened once!
                 SUM => sub {
-                    # You get a $ctx object that you can ->call() to retrieve
-                    # the values of other constants if some of your constants
-                    # depend on others. Constants are still guaranteed to only
-                    # be fleshened once!
                     my ($ctx) = @_;
                     $ctx->call('A') + $ctx->call('B'),
+                },
+                # For convenience you can also access other constants,
+                # e.g. those defined with constant.pm
+                SUM_INTEROP => sub {
+                    my ($ctx) = @_;
+                    $ctx->call('X') + $ctx->call('Y'),
                 },
                 # We won't call this and die unless someone requests it when
                 # they import us.
                 DIE => sub { die },
-                PI  => {
-                    # We can also supply a HashRef with "call" with the sub,
-                    # and "options" with options that clobber the global
-                    # options.
+                # These subroutines are always called in scalar context, and
+                # thus We'll return [3..4] here.
+                #
+                # Unlike the constant.pm that ships with perl itself we don't
+                # support returning lists (there's no such things as constant
+                # list subroutines, constant.pm fakes it with a non-inlined
+                # sub). So if you want to return lists you have to return a
+                # reference to one.
+                LIST => sub { wantarray ? (1..2) : [3..4] },
+                # We can also supply a HashRef with "call" with the sub, and
+                # "options" with options that clobber the global
+                # options. Actually when you supply just a plain sub instead
+                # of a HashRef we internally munge it to look like this more
+                # verbose (and more flexible) structure.
+                PI => {
                     call    => sub { 3.14 },
                     options => {
                         override => sub {
@@ -85,6 +63,15 @@ SYNOPSIS
                             # want to override", and "return undef;" if you
                             # want the constant to be undef.
                             return $ENV{PI} ? "Pi is = $ENV{PI}" : $ctx->call($name);
+                        },
+                        # This is an optional ref that'll be accessible via
+                        # $ctx->stash in any subs relevant to this constant
+                        # (call, override, after, ...)
+                        stash => {
+                            # This `typecheck_rx` is in no way supported by
+                            # Constant::Export::Lazy, it's just something
+                            # we're passing around to the 'after' sub below.
+                            typecheck_rx => qr/\d+\.\d+/s, # such an epicly buggy typecheck...
                         },
                     },
                 },
@@ -99,12 +86,25 @@ SYNOPSIS
                     return unless exists $ENV{$name};
                     return $ENV{$name};
                 },
+                after => sub {
+                    my ($ctx, $name, $value, $source) = @_;
+
+                    if (defined(my $stash = $ctx->stash)) {
+                        my $typecheck_rx = $stash->{typecheck_rx};
+                        die "PANIC: The value <$value> for <$name> doesn't pass <$typecheck_rx>"
+                            unless $value =~ $typecheck_rx;
+                    }
+
+                    print STDERR "Defined the constant <$name> with value <$value> from <$source>\n" if $ENV{DEBUG};
+                    return;
+                },
             },
         );
 
         1;
 
-    And this is an example of using it in some user code:
+    And this is an example of using it in some user code (from t/synopsis.t
+    in the source distro):
 
         package My::User::Code;
         use strict;
@@ -123,7 +123,9 @@ SYNOPSIS
             A
             B
             SUM
+            SUM_INTEROP
             PI
+            LIST
         );
 
         is(X, -2);
@@ -131,29 +133,179 @@ SYNOPSIS
         is(A, 1);
         is(B, 3);
         is(SUM, 4);
+        is(SUM_INTEROP, -3);
         is(PI,  "Pi is = 3.14159");
+        is(join(",", @{LIST()}), '3,4');
 
-    Things to note about this example:
+    And running it gives:
 
-    *   We're using "$ctx-"call($name)> to get the value of other constants
-        while defining ours.
+        $ DEBUG=1 perl -Ilib t/synopsis.t
+        Defined the constant <A> with value <1> from <callback>
+        Defined the constant <B> with value <3> from <override>
+        Defined the constant <SUM> with value <4> from <callback>
+        Defined the constant <SUM_INTEROP> with value <-3> from <callback>
+        Defined the constant <PI> with value <Pi is = 3.14159> from <override>
+        Defined the constant <LIST> with value <ARRAY(0x16b8918)> from <callback>
+        ok 1
+        ok 2
+        ok 3
+        ok 4
+        ok 5
+        ok 6
+        ok 7
+        ok 8
+        1..8
 
-    *   That you can use either a global "override" option or a local
-        per-sub one to override your constants via %ENV variables, or
-        anything else you can think of.
+DESCRIPTION
+    This is a utility to write lazy exporters of constant subroutines. It's
+    not meant to be a user-facing constant exporting API, it's something you
+    use to write user-facing constant exporting APIs.
 
-    *   We're using the global "wrap_existing_import" option, and Exporter
-        to export some of our constants via constant.
+    There's dozens of similar constant defining modules and exporters on the
+    CPAN, why did I need to write this one?
 
-        This demonstrates migrating an existing module that takes a list of
-        constants (or labels) that don't overlap with our list of constants
-        to "Constant::Export::Lazy".
+  It's lazy
+    Our constants fleshened via callbacks that are guaranteed to be called
+    only once for the lifetime of the process (not once per importer or
+    whatever), and we only call the callbacks lazily if someone actually
+    requests that a constant of ours be defined.
 
-        As well as supplying this option you have to "use
-        Constant::Export::Lazy" after the other module defines its "import"
-        subroutine. Then we basically compose a list of constants we know we
-        can handle, and dispatch anything we don't know about to the
-        "import" subroutine we clobbered.
+    This makes it easy to have one file that runs in different environments
+    and generates some subset of its constants with a module that you may
+    not want to use, or may not be available in all your environments. You
+    can just "require" it in the callback that generates the constant that
+    requires it.
+
+  It makes it easier to manage creating constants that require other constants
+    Maybe you have one constant indicating whether you're running in a dev
+    environment, and a bunch of other constants that are defined differently
+    if the dev environment constant is true.
+
+    Now say you have several hundred constants like that, managing the
+    inter-dependencies and that everything is defined in the right order
+    quickly gets messy.
+
+    Constant::Import::Lazy takes away all this complexity. When you define a
+    constant you get a callback object that can give you the value of other
+    constants, and will either generate them if they haven't been generated,
+    or look them up in the symbol table if they have.
+
+    Thus we end up with a Makefile-like system where you can freely use
+    whatever other constants you like when defining your constants, just be
+    careful not to introduce circular dependencies.
+
+API
+    Our API is exposed via a nested key-value pair list passed to "use", see
+    the "SYNOPSIS" for an example. Here's description of the data structure
+    you can pass in:
+
+  constants
+    This is a key-value pair list of constant names to either a subroutine
+    or a hash with "call" and optional options. Internally we just convert
+    the former type of call into the latter, i.e. "CONST =" sub {...}>
+    becomes "CONST =" { call => sub { ... } }>.
+
+   call
+    The subroutine we'll call with a /context object to fleshen the
+    constant. It's guaranteed that this sub will only ever be called once
+    for the lifetime of the process, except if you manually call it multiple
+    times during an "override".
+
+   options (local)
+    Our options hash to override the global "options". The semantics are
+    exactly the same as for the global hash.
+
+  options
+    We support various options, most of these can be defined either globally
+    if you want to use them for all the constants, or locally to one
+    constant at a time with the more verbose hash invocation to "constants".
+
+    The following options are supported:
+
+   wrap_existing_import
+    A boolean that can only be supplied as a global option. If you provide
+    this the package you're importing us into has to already have a defined
+    "import" subroutine.
+
+    We'll clobber it with something that uses us to export all the constants
+    we know about (i.e. the ones passed to "constants"), but anything we
+    don't know about will be passed to the "import" subroutine we clobbered.
+
+    This is handy for converting existing packages that use e.g. a
+    combination of Exporter to export a bunch of constant constants without
+    having to port them all over to "Constant::Export::Lazy" at the same
+    time. This allows you to do so incrementally.
+
+   override
+    This callback can be defined either globally or locally and will be
+    called instead of your "call". In addition to the /context object this
+    will also get an argument to the $name of the constant that we're
+    requesting an override for.
+
+    This can be used for things like overriding default values based on
+    entries in %ENV (see the "SYNOPSIS"), or anything else you can think of.
+
+    In an override subroutine "return $value" will return a value to be used
+    instead of the value we'd have retrieved from "call", doing a "return;"
+    on the other hand means you don't want to use the subroutine to override
+    this constant, and we'll stop trying to do so and just call L/<call> to
+    fleshen it.
+
+    You can also get the value of "call" by doing "<$ctx-"call($name)>>. We
+    have some magic around override ensuring that we only get the value, we
+    don't actually intern it in the symbol table.
+
+    This means that calling "<$ctx-"call($name)>> multiple times in the
+    scope of an override subroutine is the only way to get
+    "Constant::Export::Lazy" to call a L/<call> subroutine multiple times.
+    We otherwise guarantee that these subs are only called once (as
+    discussed in "It's lazy" and "call").
+
+   after
+    This callback will be called after we've just interned a new constant
+    into the symbol table. In addition to the /context object this will also
+    get $name, $value and $source arguments. The $name argument is the name
+    of the constant we just defined, $value is its value, and $source is
+    either "override" or "callback" depending on how the constant was
+    defined. I.e. via "override" or directly via "call".
+
+    This was added to support replacing modules that in addition to just
+    defining constants might also want to check them for well-formedness
+    after they're defined, or push known constants to a hash somewhere so
+    they can all be retrieved by some complimentary API that e.g. spews out
+    "all known settings".
+
+   stash
+    This is a reference that you can provide for your own use, we don't care
+    what's in it. It'll be accessible via the /context object's "stash"
+    method (e.g. "<my $stash = $ctx-"stash> for "call", "/override" and
+    "/after" calls relevant to its scope, i.e. global if you define it
+    globally, otherwise local if it's defined locally.
+
+CONTEXT OBJECT
+    As discussed above we pass around a context object to all callbacks that
+    you can define. See $ctx in the "SYNOPSIS" for examples.
+
+    This objects has only two methods:
+
+    *   "call"
+
+        This method will do all the work of fleshening constants via the sub
+        provided in the "call" option, taking the "override" callback into
+        account if provided, and if applicable calling the "after" callback
+        after the constant is defined.
+
+        If you call a subroutine you haven't defined yet (or isn't being
+        imported directly) we'll fleshen it if needed, making sure to only
+        export it to a user's namespace if explicitly requested.
+
+        See "override" for caveats with calling this inside the scope of an
+        override callback.
+
+    *   "stash"
+
+        An accessor for the "stash" reference, will return the empty list if
+        there's no stash reference defined.
 
 AUTHOR
     Ævar Arnfjörð Bjarmason <avar@cpan.org>

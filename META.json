@@ -1,10 +1,10 @@
 {
    "abstract" : "Utility to write lazy exporters of constant subroutines",
    "author" : [
-      "\u00c3\u0086var Arnfj\u00c3\u00b6r\u00c3\u00b0 Bjarmason <avar@cpan.org>"
+      "Ævar Arnfjörð Bjarmason <avar@cpan.org>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "Dist::Zilla version 4.300037, CPAN::Meta::Converter version 2.120921",
+   "generated_by" : "Dist::Zilla version 5.013, CPAN::Meta::Converter version 2.132830",
    "license" : [
       "perl_5"
    ],
@@ -36,6 +36,14 @@
             "constant" : "0",
             "lib" : "0"
          }
+      },
+      "test" : {
+         "requires" : {
+            "File::Spec" : "0",
+            "IO::Handle" : "0",
+            "IPC::Open3" : "0",
+            "Test::More" : "0"
+         }
       }
    },
    "release_status" : "stable",
@@ -54,7 +62,7 @@
          "web" : "http://github.com/avar/constant-export-lazy"
       }
    },
-   "version" : "0.03",
+   "version" : "0.04",
    "x_authority" : "cpan:AVAR"
 }
 

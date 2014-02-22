@@ -3,9 +3,9 @@ NAME
     subroutines
 
 SYNOPSIS
-    This increasingly verbose example of your "My::Constants" package that
-    you write using "Constant::Export::Lazy" demonstrates all our features
-    (from t/lib/My/Constants.pm in the source distro):
+    These increasing verbose example of a "My::Constants" package that you
+    can write using "Constant::Export::Lazy" demonstrates most of our major
+    features (from t/lib/My/Constants.pm in the source distro):
 
         package My::Constants;
         use strict;
@@ -44,10 +44,8 @@ SYNOPSIS
                 # thus We'll return [3..4] here.
                 #
                 # Unlike the constant.pm that ships with perl itself we don't
-                # support returning lists (there's no such things as constant
-                # list subroutines, constant.pm fakes it with a non-inlined
-                # sub). So if you want to return lists you have to return a
-                # reference to one.
+                # support returning lists. So if you want to return lists you
+                # have to return a reference to one.
                 LIST => sub { wantarray ? (1..2) : [3..4] },
                 # We can also supply a HashRef with "call" with the sub, and
                 # "options" with options that clobber the global
@@ -156,13 +154,113 @@ SYNOPSIS
         ok 8
         1..8
 
+    By default we only support importing constants explicitly by their own
+    names and not something like Exporter's @EXPORT, @EXPORT_OK or
+    %EXPORT_TAGS, but you can trivially add support for that (or any other
+    custom import munging) using the "buildargs" callback. This example is
+    from t/lib/My/Constants/Tags.pm in the source distro:
+
+        package My::Constants::Tags;
+        use v5.10;
+        use strict;
+        use warnings;
+        use Constant::Export::Lazy (
+            constants => {
+                KG_TO_MG => sub { 10**6 },
+                SQRT_2 => {
+                    call    => sub { sqrt(2) },
+                    options => {
+                        stash => {
+                            export_tags => [ qw/:math/ ],
+                        },
+                    },
+                },
+                PI => {
+                    call    => sub { atan2(1,1) * 4 },
+                    options => {
+                        stash => {
+                            export_tags => [ qw/:math/ ],
+                        },
+                    },
+                },
+                map(
+                    {
+                        my $t = $_;
+                        +(
+                            $_ => {
+                                call => sub { $t },
+                                options => {
+                                    stash => {
+                                        export_tags => [ qw/:alphabet/ ],
+                                    },
+                                }
+                            }
+                        )
+                    }
+                    "A".."Z"
+                ),
+            },
+            options => {
+                buildargs => sub {
+                    my ($import_args, $constants) = @_;
+
+                    state $export_tags = do {
+                        my %export_tags;
+                        for my $constant (keys %$constants) {
+                            my @export_tags = @{$constants->{$constant}->{options}->{stash}->{export_tags} || []};
+                            push @{$export_tags{$_}} => $constant for @export_tags;
+                        }
+                        \%export_tags;
+                    };
+
+                    my @gimme = map {
+                        /^:/ ? @{$export_tags->{$_}} : $_
+                    } @$import_args;
+
+                    return \@gimme;
+                },
+            },
+        );
+
+        1;
+
+    And this is an example of using it in some user code (from
+    t/synopsis_tags.t in the source distro):
+
+        package My::More::User::Code;
+        use strict;
+        use warnings;
+        use Test::More qw(no_plan);
+        use lib 't/lib';
+        use My::Constants::Tags qw(
+            KG_TO_MG
+            :math
+            :alphabet
+        );
+
+        is(KG_TO_MG, 10**6);
+        is(A, "A");
+        is(B, "B");
+        is(C, "C");
+        like(PI, qr/^3\.14/);
+
+    And running it gives:
+
+        $ perl -Ilib t/synopsis_tags.t
+        ok 1
+        ok 2
+        ok 3
+        ok 4
+        ok 5
+        1..5
+
 DESCRIPTION
     This is a utility to write lazy exporters of constant subroutines. It's
     not meant to be a user-facing constant exporting API, it's something you
     use to write user-facing constant exporting APIs.
 
-    There's dozens of similar constant defining modules and exporters on the
-    CPAN, why did I need to write this one?
+    There's dozens of modules on the CPAN that define constants in one way
+    or another, why did I need to write this one?
 
   It's lazy
     Our constants fleshened via callbacks that are guaranteed to be called
@@ -170,11 +268,17 @@ DESCRIPTION
     whatever), and we only call the callbacks lazily if someone actually
     requests that a constant of ours be defined.
 
-    This makes it easy to have one file that runs in different environments
-    and generates some subset of its constants with a module that you may
-    not want to use, or may not be available in all your environments. You
-    can just "require" it in the callback that generates the constant that
-    requires it.
+    This makes it easy to have one constant exporting module that runs in
+    different environments, and generates some subset of its constants
+    depending on what the program that's using it actually needs.
+
+    Some data that you may want to turn into constants may require modules
+    that aren't available everywhere, queries to databases that aren't
+    available everywhere, or make certain assumptions about the environment
+    they're running under that may not be true across all your environments.
+
+    By only defining those constants you actually need via callbacks that
+    you provide managing all these special-cases becomes a lot easier.
 
   It makes it easier to manage creating constants that require other constants
     Maybe you have one constant indicating whether you're running in a dev
@@ -182,17 +286,19 @@ DESCRIPTION
     if the dev environment constant is true.
 
     Now say you have several hundred constants like that, managing the
-    inter-dependencies and that everything is defined in the right order
-    quickly gets messy.
+    inter-dependencies and ensuring that they're all defined in the right
+    order with dependencies before dependents quickly gets messy.
 
     Constant::Import::Lazy takes away all this complexity. When you define a
     constant you get a callback object that can give you the value of other
-    constants, and will either generate them if they haven't been generated,
-    or look them up in the symbol table if they have.
+    constants.
+
+    When you look up another constant we'll either generate it if it hasn't
+    been materialized yet, look it up in the symbol table if it has.
 
     Thus we end up with a Makefile-like system where you can freely use
-    whatever other constants you like when defining your constants, just be
-    careful not to introduce circular dependencies.
+    whatever other constants you like when defining your constants, you only
+    have to be careful not to introduce circular dependencies.
 
 API
     Our API is exposed via a nested key-value pair list passed to "use", see
@@ -207,6 +313,7 @@ API
 
    call
     The subroutine we'll call with a context object to fleshen the constant.
+
     It's guaranteed that this sub will only ever be called once for the
     lifetime of the process, except if you manually call it multiple times
     during an "override".
@@ -222,6 +329,27 @@ API
 
     The following options are supported:
 
+   buildargs
+    A callback that can only be supplied as a global option. If you provide
+    this the callback we'll call it to munge any parameters to import we
+    might get. This can be used (as shown in the synopsis) to strip or map
+    parameters to e.g. implement support for %EXPORT_TAGS, or to do any
+    other arbitrary mapping.
+
+    This callback will be called with a reference to the parameters passed
+    to import, and for convenience with the constants with the hash you
+    provided (e.g. for introspecting the stashes of constants, see the
+    synopsis example.
+
+    This is expected to return an array with a list of constants to import,
+    or the empty list if we should discard the return value of this callback
+    and act is if it wasn't present at all.
+
+    This plays nice with the "wrap_existing_import" parameter. When it's in
+    force any constant names (or tag names, or whatever) you return that we
+    don't know about ourselves we'll pass to the fallback import subroutine
+    we're wrapping as we would if buildargs hadn't been defined.
+
    wrap_existing_import
     A boolean that can only be supplied as a global option. If you provide
     this the package you're importing us into has to already have a defined
@@ -235,6 +363,16 @@ API
     combination of Exporter to export a bunch of constant constants without
     having to port them all over to "Constant::Export::Lazy" at the same
     time. This allows you to do so incrementally.
+
+    For convenience we also support calling these foreign subroutines with
+    "<$ctx-"call($name)>>. This is handy because when migrating an existing
+    package you can already start calling existing constants with our
+    interface, and then when you migrate those constants over you won't have
+    to change any of the old code.
+
+    We'll handle calling subroutines generated with perl's own constant.pm
+    (including "list" constants), but we'll die in "call" if we call a
+    foreign subroutine that returns more than one value.
 
    override
     This callback can be defined either globally or locally and will be
@@ -281,6 +419,50 @@ API
     method (e.g. "<my $stash = $ctx-"stash> for "call", "/override" and
     "/after" calls relevant to its scope, i.e. global if you define it
     globally, otherwise local if it's defined locally.
+
+   private_name_munger
+    This callback can be defined either globally or locally. When it's
+    provided it'll be used to munge the internal name of the subroutine we
+    define in the exporting package.
+
+    This allows for preventing the anti-pattern of user code not importing
+    constants before using them. To take the example in the synopsis it's
+    for preventing "My::Constants::PI" and "My::User::Code::PI"
+    interchangeably, using this facility we can change "My::Constants::PI"
+    to e.g. "My::Constants::SOME_OPAQUE_VALUE_PI".
+
+    This is useful because users used to using other constant modules might
+    be in the habit of using non-imported and imported names
+    interchangeably.
+
+    This is fine when the constant exporting module isn't lazy, however with
+    Constant::Export::Lazy this relies on someone else having previously
+    defined the constant at a distance, and if that someone goes away
+    this'll silently turn into an error at a distance.
+
+    By using the "private_name_munger" option you can avoid this happening
+    in the first place by specifying a subroutine like:
+
+        private_name_munger => sub {
+            my ($gimme) = @_;
+
+            # We guarantee that these constants are always defined by us,
+            # and we don't want to munge them because legacy code calls
+            # them directly for historical reasons.
+            return if $gimme =~ /^ALWAYS_DEFINED_/;
+
+            state $now = time();
+            return $gimme . '_TIME_' . $now;
+        },
+
+    Anyone trying to call that directly from your exporting package as
+    opposed to importing into their package will very quickly discover that
+    it doesn't work.
+
+    Because this is called really early on this routine doesn't get passed a
+    $ctx object, just the name of the constant you might want to munge. To
+    skip munging it return the empty list, otherwise return a munged name to
+    be used in the private symbol table.
 
 CONTEXT OBJECT
     As discussed above we pass around a context object to all callbacks that

@@ -386,7 +386,7 @@ API
     In an override subroutine "return $value" will return a value to be used
     instead of the value we'd have retrieved from "call", doing a "return;"
     on the other hand means you don't want to use the subroutine to override
-    this constant, and we'll stop trying to do so and just call L/<call> to
+    this constant, and we'll stop trying to do so and just call "call" to
     fleshen it.
 
     You can also get the value of "call" by doing "<$ctx-"call($name)>>. We
@@ -395,9 +395,9 @@ API
 
     This means that calling "<$ctx-"call($name)>> multiple times in the
     scope of an override subroutine is the only way to get
-    "Constant::Export::Lazy" to call a L/<call> subroutine multiple times.
-    We otherwise guarantee that these subs are only called once (as
-    discussed in "It's lazy" and "call").
+    "Constant::Export::Lazy" to call a "call" subroutine multiple times. We
+    otherwise guarantee that these subs are only called once (as discussed
+    in "It's lazy" and "call").
 
    after
     This callback will be called after we've just interned a new constant
@@ -413,10 +413,13 @@ API
     they can all be retrieved by some complimentary API that e.g. spews out
     "all known settings".
 
+    You must "return:" from this subroutine, if anything's returned from it
+    we'll die, this is to reserve any returning of values for future use.
+
    stash
     This is a reference that you can provide for your own use, we don't care
     what's in it. It'll be accessible via the context object's "stash"
-    method (e.g. "<my $stash = $ctx-"stash> for "call", "/override" and
+    method (i.e. "<<my $stash = $ctx-"stash> for "call", "/override" and
     "/after" calls relevant to its scope, i.e. global if you define it
     globally, otherwise local if it's defined locally.
 
@@ -463,6 +466,11 @@ API
     $ctx object, just the name of the constant you might want to munge. To
     skip munging it return the empty list, otherwise return a munged name to
     be used in the private symbol table.
+
+    We consider this a purely functional subroutine and you MUST return the
+    same munged name for the same $gimme because we might resolve that
+    $gimme multiple times. Failure to do so will result your callbacks being
+    redundantly re-defined.
 
 CONTEXT OBJECT
     As discussed above we pass around a context object to all callbacks that

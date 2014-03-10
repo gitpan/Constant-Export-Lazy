@@ -2,7 +2,7 @@ package Constant::Export::Lazy;
 BEGIN {
   $Constant::Export::Lazy::AUTHORITY = 'cpan:AVAR';
 }
-$Constant::Export::Lazy::VERSION = '0.05';
+$Constant::Export::Lazy::VERSION = '0.06';
 use strict;
 use warnings;
 
@@ -178,7 +178,7 @@ package Constant::Export::Lazy::Ctx;
 BEGIN {
   $Constant::Export::Lazy::Ctx::AUTHORITY = 'cpan:AVAR';
 }
-$Constant::Export::Lazy::Ctx::VERSION = '0.05';
+$Constant::Export::Lazy::Ctx::VERSION = '0.06';
 use strict;
 use warnings;
 
@@ -804,7 +804,7 @@ In an override subroutine C<return $value> will return a value to be
 used instead of the value we'd have retrieved from L</call>, doing a
 C<return;> on the other hand means you don't want to use the
 subroutine to override this constant, and we'll stop trying to do so
-and just call L/<call> to fleshen it.
+and just call L</call> to fleshen it.
 
 You can also get the value of L</call> by doing
 C<<$ctx->call($name)>>. We have some magic around override ensuring
@@ -813,7 +813,7 @@ symbol table.
 
 This means that calling C<<$ctx->call($name)>> multiple times in the
 scope of an override subroutine is the only way to get
-C<Constant::Export::Lazy> to call a L/<call> subroutine multiple
+C<Constant::Export::Lazy> to call a L</call> subroutine multiple
 times. We otherwise guarantee that these subs are only called once (as
 discussed in L</It's lazy> and L</call>).
 
@@ -834,12 +834,16 @@ after they're defined, or push known constants to a hash somewhere so
 they can all be retrieved by some complimentary API that e.g. spews
 out "all known settings".
 
+You must C<return:> from this subroutine, if anything's returned from
+it we'll die, this is to reserve any returning of values for future
+use.
+
 =head3 stash
 
 This is a reference that you can provide for your own use, we don't
 care what's in it. It'll be accessible via the L<context
 object|Constant::Export::Lazy/"CONTEXT OBJECT">'s C<stash> method
-(e.g. C<<my $stash = $ctx->stash> for L</call>, C</override> and
+(i.e. C<<<my $stash = $ctx->stash> for L</call>, C</override> and
 C</after> calls relevant to its scope, i.e. global if you define it
 globally, otherwise local if it's defined locally.
 
@@ -888,6 +892,11 @@ Because this is called really early on this routine doesn't get passed
 a C<$ctx> object, just the name of the constant you might want to
 munge. To skip munging it return the empty list, otherwise return a
 munged name to be used in the private symbol table.
+
+We consider this a purely functional subroutine and you B<MUST> return
+the same munged name for the same C<$gimme> because we might resolve
+that C<$gimme> multiple times. Failure to do so will result your
+callbacks being redundantly re-defined.
 
 =head1 CONTEXT OBJECT
 

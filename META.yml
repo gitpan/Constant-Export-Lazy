@@ -3,14 +3,11 @@ abstract: 'Utility to write lazy exporters of constant subroutines'
 author:
   - 'Ævar Arnfjörð Bjarmason <avar@cpan.org>'
 build_requires:
-  File::Spec: 0
-  IO::Handle: 0
-  IPC::Open3: 0
-  Test::More: 0
+  Data::Dump::Streamer: 0
 configure_requires:
   ExtUtils::MakeMaker: 6.30
 dynamic_config: 0
-generated_by: 'Dist::Zilla version 5.013, CPAN::Meta::Converter version 2.132830'
+generated_by: 'Dist::Zilla version 4.300040, CPAN::Meta::Converter version 2.132830'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
@@ -29,5 +26,5 @@ resources:
   homepage: http://metacpan.org/release/Constant-Export-Lazy
   license: http://dev.perl.org/licenses/
   repository: git://github.com/avar/constant-export-lazy.git
-version: 0.06
+version: 0.07
 x_authority: cpan:AVAR

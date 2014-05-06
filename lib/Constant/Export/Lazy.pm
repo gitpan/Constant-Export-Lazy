@@ -2,7 +2,9 @@ package Constant::Export::Lazy;
 BEGIN {
   $Constant::Export::Lazy::AUTHORITY = 'cpan:AVAR';
 }
-$Constant::Export::Lazy::VERSION = '0.06';
+{
+  $Constant::Export::Lazy::VERSION = '0.07';
+}
 use strict;
 use warnings;
 
@@ -178,7 +180,9 @@ package Constant::Export::Lazy::Ctx;
 BEGIN {
   $Constant::Export::Lazy::Ctx::AUTHORITY = 'cpan:AVAR';
 }
-$Constant::Export::Lazy::Ctx::VERSION = '0.06';
+{
+  $Constant::Export::Lazy::Ctx::VERSION = '0.07';
+}
 use strict;
 use warnings;
 

@@ -3,7 +3,7 @@ BEGIN {
   $Constant::Export::Lazy::AUTHORITY = 'cpan:AVAR';
 }
 {
-  $Constant::Export::Lazy::VERSION = '0.07';
+  $Constant::Export::Lazy::VERSION = '0.08';
 }
 use strict;
 use warnings;
@@ -181,7 +181,7 @@ BEGIN {
   $Constant::Export::Lazy::Ctx::AUTHORITY = 'cpan:AVAR';
 }
 {
-  $Constant::Export::Lazy::Ctx::VERSION = '0.07';
+  $Constant::Export::Lazy::Ctx::VERSION = '0.08';
 }
 use strict;
 use warnings;
@@ -208,7 +208,7 @@ sub call {
     # Unless we're wrapping an existing import ->call($gimme) should
     # always be called with a $gimme that we know about.
     unless (exists $constants->{$gimme}) {
-        die "PANIC: You're trying to get the value of an unknown constant, and wrap_existing_import isn't set" unless $wrap_existing_import;
+        die "PANIC: You're trying to get the value of an unknown constant ($gimme), and wrap_existing_import isn't set" unless $wrap_existing_import;
     }
 
     my ($private_name, $glob_name, $alias_as);

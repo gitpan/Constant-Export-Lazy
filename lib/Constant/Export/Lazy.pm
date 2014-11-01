@@ -3,7 +3,7 @@ BEGIN {
   $Constant::Export::Lazy::AUTHORITY = 'cpan:AVAR';
 }
 {
-  $Constant::Export::Lazy::VERSION = '0.08';
+  $Constant::Export::Lazy::VERSION = '0.09';
 }
 use strict;
 use warnings;
@@ -181,7 +181,7 @@ BEGIN {
   $Constant::Export::Lazy::Ctx::AUTHORITY = 'cpan:AVAR';
 }
 {
-  $Constant::Export::Lazy::Ctx::VERSION = '0.08';
+  $Constant::Export::Lazy::Ctx::VERSION = '0.09';
 }
 use strict;
 use warnings;
@@ -352,7 +352,14 @@ sub call {
                 # Make the disabling of strict have as small as scope
                 # as possible.
                 no strict 'refs';
-                *$glob_name = sub () { use strict; $value };
+
+                # Future-proof against changes in perl that might not
+                # optimize the constant sub if $value is used
+                # elsewhere, we're passing it to the $after function
+                # just below. See the "Is it time to separate pad
+                # names from SVs?" thread on perl5-porters.
+                my $value_copy = $value;
+                *$glob_name = sub () { $value_copy };
             }
 
             # Maybe we have a callback that wants to know when we define
@@ -401,7 +408,7 @@ Constant::Export::Lazy - Utility to write lazy exporters of constant subroutines
 
 =head1 SYNOPSIS
 
-These increasing verbose example of a C<My::Constants> package that
+This increasingly verbose example of a C<My::Constants> package that
 you can write using C<Constant::Export::Lazy> demonstrates most of our
 major features (from F<t/lib/My/Constants.pm> in the source distro):
 
@@ -715,8 +722,8 @@ structure you can pass in:
 This is a key-value pair list of constant names to either a subroutine
 or a hash with L</call> and optional L<options|/options
 (local)>. Internally we just convert the former type of call into the
-latter, i.e. C<CONST => sub {...}> becomes C<CONST => { call => sub {
-... } }>.
+latter, i.e. C<<CONST => sub {...}>> becomes C<<CONST => { call => sub {
+... } }>>.
 
 =head3 call
 
@@ -782,7 +789,7 @@ without having to port them all over to C<Constant::Export::Lazy> at
 the same time. This allows you to do so incrementally.
 
 For convenience we also support calling these foreign subroutines with
-C<<$ctx->call($name)>>. This is handy because when migrating an
+C<< $ctx->call($name) >>. This is handy because when migrating an
 existing package you can already start calling existing constants with
 our interface, and then when you migrate those constants over you
 won't have to change any of the old code.
@@ -811,11 +818,11 @@ subroutine to override this constant, and we'll stop trying to do so
 and just call L</call> to fleshen it.
 
 You can also get the value of L</call> by doing
-C<<$ctx->call($name)>>. We have some magic around override ensuring
+C<< $ctx->call($name) >>. We have some magic around override ensuring
 that we only B<get> the value, we don't actually intern it in the
 symbol table.
 
-This means that calling C<<$ctx->call($name)>> multiple times in the
+This means that calling C<< $ctx->call($name) >> multiple times in the
 scope of an override subroutine is the only way to get
 C<Constant::Export::Lazy> to call a L</call> subroutine multiple
 times. We otherwise guarantee that these subs are only called once (as
@@ -847,8 +854,8 @@ use.
 This is a reference that you can provide for your own use, we don't
 care what's in it. It'll be accessible via the L<context
 object|Constant::Export::Lazy/"CONTEXT OBJECT">'s C<stash> method
-(i.e. C<<<my $stash = $ctx->stash> for L</call>, C</override> and
-C</after> calls relevant to its scope, i.e. global if you define it
+(i.e. C<< my $stash = $ctx->stash >>) for L</call>, L</override> and
+L</after> calls relevant to its scope, i.e. global if you define it
 globally, otherwise local if it's defined locally.
 
 =head3 private_name_munger

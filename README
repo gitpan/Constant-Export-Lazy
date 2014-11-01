@@ -3,7 +3,7 @@ NAME
     subroutines
 
 SYNOPSIS
-    These increasing verbose example of a "My::Constants" package that you
+    This increasingly verbose example of a "My::Constants" package that you
     can write using "Constant::Export::Lazy" demonstrates most of our major
     features (from t/lib/My/Constants.pm in the source distro):
 
@@ -308,8 +308,8 @@ API
   constants
     This is a key-value pair list of constant names to either a subroutine
     or a hash with "call" and optional options. Internally we just convert
-    the former type of call into the latter, i.e. "CONST =" sub {...}>
-    becomes "CONST =" { call => sub { ... } }>.
+    the former type of call into the latter, i.e. "<CONST =" sub {...}>>
+    becomes "<CONST =" { call => sub { ... } }>>.
 
    call
     The subroutine we'll call with a context object to fleshen the constant.
@@ -365,7 +365,7 @@ API
     time. This allows you to do so incrementally.
 
     For convenience we also support calling these foreign subroutines with
-    "<$ctx-"call($name)>>. This is handy because when migrating an existing
+    "$ctx->call($name)". This is handy because when migrating an existing
     package you can already start calling existing constants with our
     interface, and then when you migrate those constants over you won't have
     to change any of the old code.
@@ -389,12 +389,12 @@ API
     this constant, and we'll stop trying to do so and just call "call" to
     fleshen it.
 
-    You can also get the value of "call" by doing "<$ctx-"call($name)>>. We
+    You can also get the value of "call" by doing "$ctx->call($name)". We
     have some magic around override ensuring that we only get the value, we
     don't actually intern it in the symbol table.
 
-    This means that calling "<$ctx-"call($name)>> multiple times in the
-    scope of an override subroutine is the only way to get
+    This means that calling "$ctx->call($name)" multiple times in the scope
+    of an override subroutine is the only way to get
     "Constant::Export::Lazy" to call a "call" subroutine multiple times. We
     otherwise guarantee that these subs are only called once (as discussed
     in "It's lazy" and "call").
@@ -419,8 +419,8 @@ API
    stash
     This is a reference that you can provide for your own use, we don't care
     what's in it. It'll be accessible via the context object's "stash"
-    method (i.e. "<<my $stash = $ctx-"stash> for "call", "/override" and
-    "/after" calls relevant to its scope, i.e. global if you define it
+    method (i.e. "my $stash = $ctx->stash") for "call", "override" and
+    "after" calls relevant to its scope, i.e. global if you define it
     globally, otherwise local if it's defined locally.
 
    private_name_munger

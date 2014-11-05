@@ -26,5 +26,5 @@ resources:
   homepage: http://metacpan.org/release/Constant-Export-Lazy
   license: http://dev.perl.org/licenses/
   repository: git://github.com/avar/constant-export-lazy.git
-version: 0.09
+version: 0.10
 x_authority: cpan:AVAR

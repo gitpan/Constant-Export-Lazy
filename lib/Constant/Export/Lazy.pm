@@ -3,7 +3,7 @@ BEGIN {
   $Constant::Export::Lazy::AUTHORITY = 'cpan:AVAR';
 }
 {
-  $Constant::Export::Lazy::VERSION = '0.09';
+  $Constant::Export::Lazy::VERSION = '0.10';
 }
 use strict;
 use warnings;
@@ -181,7 +181,7 @@ BEGIN {
   $Constant::Export::Lazy::Ctx::AUTHORITY = 'cpan:AVAR';
 }
 {
-  $Constant::Export::Lazy::Ctx::VERSION = '0.09';
+  $Constant::Export::Lazy::Ctx::VERSION = '0.10';
 }
 use strict;
 use warnings;
@@ -378,7 +378,7 @@ sub call {
         no strict 'refs';
         # Alias e.g. user::CONSTANT to YourExporter::CONSTANT (well,
         # actually YourExporter::$private_name)
-        *$alias_as = *$glob_name;
+        *$alias_as = \&$glob_name;
     }
 
     return $value;

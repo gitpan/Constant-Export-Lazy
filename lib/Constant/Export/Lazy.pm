@@ -3,7 +3,7 @@ BEGIN {
   $Constant::Export::Lazy::AUTHORITY = 'cpan:AVAR';
 }
 {
-  $Constant::Export::Lazy::VERSION = '0.10';
+  $Constant::Export::Lazy::VERSION = '0.11';
 }
 use strict;
 use warnings;
@@ -181,7 +181,7 @@ BEGIN {
   $Constant::Export::Lazy::Ctx::AUTHORITY = 'cpan:AVAR';
 }
 {
-  $Constant::Export::Lazy::Ctx::VERSION = '0.10';
+  $Constant::Export::Lazy::Ctx::VERSION = '0.11';
 }
 use strict;
 use warnings;

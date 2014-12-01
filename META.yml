@@ -3,7 +3,10 @@ abstract: 'Utility to write lazy exporters of constant subroutines'
 author:
   - 'Ævar Arnfjörð Bjarmason <avar@cpan.org>'
 build_requires:
-  Data::Dump::Streamer: 0
+  Exporter: 5.566
+  Test::More: 0
+  constant: 0
+  lib: 0
 configure_requires:
   ExtUtils::MakeMaker: 6.30
 dynamic_config: 0
@@ -16,15 +19,10 @@ name: Constant-Export-Lazy
 no_index:
   directory:
     - t
-requires:
-  Exporter: 5.566
-  Test::More: 0
-  constant: 0
-  lib: 0
 resources:
   bugtracker: https://rt.cpan.org/Public/Dist/Display.html?Name=Constant-Export-Lazy
   homepage: http://metacpan.org/release/Constant-Export-Lazy
   license: http://dev.perl.org/licenses/
   repository: git://github.com/avar/constant-export-lazy.git
-version: 0.10
+version: 0.11
 x_authority: cpan:AVAR

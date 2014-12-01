@@ -19,16 +19,14 @@ my %WriteMakefileArgs = (
   "EXE_FILES" => [],
   "LICENSE" => "perl",
   "NAME" => "Constant::Export::Lazy",
-  "PREREQ_PM" => {
+  "PREREQ_PM" => {},
+  "TEST_REQUIRES" => {
     "Exporter" => "5.566",
     "Test::More" => 0,
     "constant" => 0,
     "lib" => 0
   },
-  "TEST_REQUIRES" => {
-    "Data::Dump::Streamer" => 0
-  },
-  "VERSION" => "0.10",
+  "VERSION" => "0.11",
   "test" => {
     "TESTS" => "t/*.t"
   }

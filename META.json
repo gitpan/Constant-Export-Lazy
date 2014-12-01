@@ -29,17 +29,12 @@
             "Test::Pod" : "1.41"
          }
       },
-      "runtime" : {
+      "test" : {
          "requires" : {
             "Exporter" : "5.566",
             "Test::More" : "0",
             "constant" : "0",
             "lib" : "0"
-         }
-      },
-      "test" : {
-         "requires" : {
-            "Data::Dump::Streamer" : "0"
          }
       }
    },
@@ -59,7 +54,7 @@
          "web" : "http://github.com/avar/constant-export-lazy"
       }
    },
-   "version" : "0.10",
+   "version" : "0.11",
    "x_authority" : "cpan:AVAR"
 }
 

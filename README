@@ -3,9 +3,9 @@ NAME
     subroutines
 
 SYNOPSIS
-    This increasingly verbose example of a "My::Constants" package that you
-    can write using "Constant::Export::Lazy" demonstrates most of our major
-    features (from t/lib/My/Constants.pm in the source distro):
+    This as an example of a "My::Constants" package that you can write using
+    "Constant::Export::Lazy" that demonstrates most of its main features.
+    This is from the file t/lib/My/Constants.pm in the source distro:
 
         package My::Constants;
         use strict;
@@ -255,7 +255,7 @@ SYNOPSIS
         1..5
 
 DESCRIPTION
-    This is a utility to write lazy exporters of constant subroutines. It's
+    This is a library to write lazy exporters of constant subroutines. It's
     not meant to be a user-facing constant exporting API, it's something you
     use to write user-facing constant exporting APIs.
 
@@ -263,9 +263,9 @@ DESCRIPTION
     or another, why did I need to write this one?
 
   It's lazy
-    Our constants fleshened via callbacks that are guaranteed to be called
-    only once for the lifetime of the process (not once per importer or
-    whatever), and we only call the callbacks lazily if someone actually
+    Our constants are fleshened via callbacks that are guaranteed to be
+    called only once for the lifetime of the process (not once per importer
+    or whatever), and we only call the callbacks lazily if someone actually
     requests that a constant of ours be defined.
 
     This makes it easy to have one constant exporting module that runs in
@@ -277,8 +277,8 @@ DESCRIPTION
     available everywhere, or make certain assumptions about the environment
     they're running under that may not be true across all your environments.
 
-    By only defining those constants you actually need via callbacks that
-    you provide managing all these special-cases becomes a lot easier.
+    By only defining those constants you actually need via callbacks
+    managing all these special-cases becomes a lot easier.
 
   It makes it easier to manage creating constants that require other constants
     Maybe you have one constant indicating whether you're running in a dev
@@ -289,16 +289,19 @@ DESCRIPTION
     inter-dependencies and ensuring that they're all defined in the right
     order with dependencies before dependents quickly gets messy.
 
-    Constant::Import::Lazy takes away all this complexity. When you define a
-    constant you get a callback object that can give you the value of other
-    constants.
+    All this complexity becomes a non-issue when you use this module. When
+    you define a constant you get a callback object that can give you the
+    value of other constants.
 
     When you look up another constant we'll either generate it if it hasn't
-    been materialized yet, look it up in the symbol table if it has.
+    been materialized yet, or look up the materialized value in the symbol
+    table if it has.
 
     Thus we end up with a Makefile-like system where you can freely use
-    whatever other constants you like when defining your constants, you only
-    have to be careful not to introduce circular dependencies.
+    whatever other constants you like when defining your constants, and
+    we'll lazily define the entire tree of constants on-demand.
+
+    You only have to be careful not to introduce circular dependencies.
 
 API
     Our API is exposed via a nested key-value pair list passed to "use", see
@@ -337,9 +340,9 @@ API
     other arbitrary mapping.
 
     This callback will be called with a reference to the parameters passed
-    to import, and for convenience with the constants with the hash you
-    provided (e.g. for introspecting the stashes of constants, see the
-    synopsis example.
+    to import, and for convenience with the constants hash you provided
+    (e.g. for introspecting the stashes of constants, see the synopsis
+    example.
 
     This is expected to return an array with a list of constants to import,
     or the empty list if we should discard the return value of this callback
@@ -372,7 +375,9 @@ API
 
     We'll handle calling subroutines generated with perl's own constant.pm
     (including "list" constants), but we'll die in "call" if we call a
-    foreign subroutine that returns more than one value.
+    foreign subroutine that returns more than one value, i.e. constants
+    defined as "use constant FOO =" (1, 2, 3)> instead of "use constant FOO
+    =" [1, 2, 3]>.
 
    override
     This callback can be defined either globally or locally and will be

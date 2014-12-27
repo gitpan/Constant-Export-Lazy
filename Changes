@@ -1,5 +1,35 @@
 Revision history for Constant::Export::Lazy
 
+0.13 2014-12-27 21:23:06
+
+    - Fix a long-standing bug of being unable to define constants from
+      sub-packages at "call" time.
+
+      If you were in the callback for YourExporter::CONSTANT and
+      required a module that also used YourExporter module to get some
+      YourExporter::UNRELATED_CONSTANT we wouldn't create that symbol
+      for that module and we'd most likely die at compile-time.
+
+      The reason for this is that we had a really naïve notion of when
+      we should be interning constants purely based on whether we were
+      in a nested "call" subroutine. Now we keep track of what
+      constants packages want and intern those symbols they request.
+
+    - We now use FATAL "recursion" warnings in Constant::Export::Lazy,
+      if we've gone above perl's built-in recursion limit of 100 we'd
+      rather die early than slowly exhaust all the memory on the
+      system and have the OOM killer kill us when this happens.
+
+    - Get rid of the Constant::Export::Lazy::Ctx::new()
+      method. Instead we just bless directly into the package, this is
+      just a nano-optimization.
+
+    - Add a new test to see if we're actually defining constants, this
+      test piggy-backs on the warnings emitted when our constant
+      subroutines are overridden.
+
+    - Clarify & reword some POD & inline comments.
+
 0.12 2014-12-19 09:44:37
 
     - Added COPYRIGHT AND LICENSE section to pod, with standard "as perl"

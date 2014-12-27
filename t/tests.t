@@ -273,6 +273,23 @@ use Constant::Export::Lazy (
 
             return \@ret;
         },
+        TEST_CONSTANT_NOT_CIRCULAR_DEPENDENCY_54321 => sub {
+            $CALL_COUNTER++;
+
+            return 54321;
+        },
+        TEST_CONSTANT_CIRCULAR_DEPENDENCY => sub {
+            $CALL_COUNTER++;
+            my ($ctx) = @_;
+
+            require My::Test::CircularDependency;
+            return My::Test::CircularDependency->gimme('TEST_CONSTANT_CIRCULAR_DEPENDENCY_CONSTANT');
+        },
+        TEST_CONSTANT_CIRCULAR_DEPENDENCY_CONSTANT => sub {
+            $CALL_COUNTER++;
+
+            return 12345;
+        },
     },
     options => {
         wrap_existing_import => 1,
@@ -466,6 +483,7 @@ BEGIN {
         TEST_NO_AFTER_NO_OVERRIDE
         TEST_BAD_CALL_PARAMETER
         TEST_WRAP_PERL_BEHAVIOR_DIFFERENCE_CONSTANT_LIST
+        TEST_CONSTANT_CIRCULAR_DEPENDENCY
     ));
     eval {
         TestSimple->import(qw(TEST_BROKEN_OVERRIDE));
@@ -530,6 +548,13 @@ BEGIN {
         my $error = $@ || "Zombie Error";
         like($error, qr/^PANIC.*return zero or one values with buildargs, yours returns 2 values/, "Invalid buildargs use");
     };
+    eval {
+        TestSimple->import(qw(TEST_CONSTANT_CIRCULAR_DEPENDENCY));
+        1;
+    } or do {
+        my $error = $@ || "Zombie Error";
+        fail("We should support using packages within `call` that in turn use our constant exporting package. Got the error: <$error>");
+    };
 }
 
 # Check that the exporter didn't leak any other symbols
@@ -568,7 +593,9 @@ is(TEST_CONSTANT_VARIABLE, 6, "Constant composed with some variables");
 is(TEST_CONSTANT_RECURSIVE, 7, "Constant looked up via \$ctx->call(...)");
 is(TEST_CONSTANT_OVERRIDDEN_ENV_NAME, 42, "We properly defined a constant with some overriden options");
 ok(exists &TestSimple::TEST_CONSTANT_CALLED_FROM_OVERRIDDEN_ENV_NAME, "We fleshened unrelated TEST_CONSTANT_CALLED_FROM_OVERRIDDEN_ENV_NAME though");
+ok(!exists &TEST_CONSTANT_CALLED_FROM_OVERRIDDEN_ENV_NAME, "We did not import TEST_CONSTANT_CALLED_FROM_OVERRIDDEN_ENV_NAME into main");
 ok(exists &TestSimple::__INTERNAL__TEST_CONSTANT_CALLED_FROM_OVERRIDDEN_ENV_NAME_NAME_MUNGED, "..and its __INTERNAL__TEST_CONSTANT_CALLED_FROM_OVERRIDDEN_ENV_NAME_NAME_MUNGED sibling with an overridden name");
+ok(!exists &__INTERNAL__TEST_CONSTANT_CALLED_FROM_OVERRIDDEN_ENV_NAME_NAME_MUNGED, "We did not import __INTERNAL__TEST_CONSTANT_CALLED_FROM_OVERRIDDEN_ENV_NAME_NAME_MUNGED into main");
 is(TEST_CONSTANT_REQUESTED, 98765, "Our requested constant has the right value");
 ok(!exists &TEST_CONSTANT_NOT_REQUESTED, "We shouldn't import TEST_CONSTANT_NOT_REQUESTED into this namespace...");
 is(TestSimple::TEST_CONSTANT_NOT_REQUESTED, 98765, "...but it should be defined in TestSimple::* so it'll be re-used as well");
@@ -576,9 +603,11 @@ is(join(",", @{TEST_LIST()}), '3,4', "We should get 3,4 from joining up TEST_LIS
 is(TEST_NO_STASH, undef, "We'll return undef if we have no stash");
 is(TEST_NO_AFTER_NO_OVERRIDE, 'no_after_no_override', "A constant that didn't call 'after' or 'override'");
 like(TEST_BAD_CALL_PARAMETER, qr/^PANIC.*THIS_CONSTANT_DOES_NOT_EXIST has no symbol table entry/, "Non-existing constant under wrap_existing_import");
+ok(!exists &TEST_CONSTANT_CIRCULAR_DEPENDENCY_CONSTANT, "We didn't import TEST_CONSTANT_CIRCULAR_DEPENDENCY_CONSTAN");
+ok(!exists &TEST_CONSTANT_NOT_CIRCULAR_DEPENDENCY_54321, "We didn't import TEST_CONSTANT_NOT_CIRCULAR_DEPENDENCY_54321");
 
 # Afterwards check that the counters are OK
-our $call_counter = 19;
+our $call_counter = 22;
 our $after_and_override_call_counter = $call_counter - 2;
 is($TestSimple::CALL_COUNTER, $call_counter, "We didn't redundantly call various subs, we cache them in the stash");
 is($TestSimple::AFTER_COUNTER, $after_and_override_call_counter, "Our AFTER counter is always the same as our CALL counter (unless 'after' is clobbered), we only call this for interned values");
